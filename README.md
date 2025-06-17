@@ -40,6 +40,7 @@
 * Three.js - <a href="https://threejs.org">threejs.org</a> - Open Source 3d javascrypt library
 * Home Assistant - <a href="https://homeassistant.io">homeassistant.io</a> - Open Source Home Automation Software
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
 <!-- GETTING STARTED -->
