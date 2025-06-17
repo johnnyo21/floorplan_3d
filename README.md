@@ -32,6 +32,7 @@
   <a href="https://github.com/johnnyo21/floorplan_3d">
     <img src="images/floorplan_3d_example.png" alt="Example" >
   </a>
+</div>
 
 
 ### Built With
