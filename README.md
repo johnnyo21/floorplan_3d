@@ -28,7 +28,10 @@
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
-[![Product Name Screen Shot][product-screenshot]](https://example.com)
+<div align="center">
+  <a href="https://github.com/johnnyo21/floorplan_3d">
+    <img src="images/floorplan_3d_example.png" alt="Example" >
+  </a>
 
 
 ### Built With
