@@ -53,7 +53,7 @@ Alternatively, you can use any other 3d design software as long as you can expor
 
 ### Prerequisites
 
-This is an example of how to list things you need to use the software and how to install them.
+Once you have the model of your home completed.
 * npm
   ```sh
   npm install npm@latest -g
