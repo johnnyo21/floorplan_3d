@@ -21,6 +21,8 @@
     &middot;
     <a href="https://github.com/johnnyo21/floorplan_3d/issues/new?labels=enhancement&template=feature-request---.md">Request Feature</a>
   </p>
+  <br />
+  <a href="https://www.buymeacoffee.com/johnnyo21" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
 </div>
 
 
