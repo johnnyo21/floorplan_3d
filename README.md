@@ -70,11 +70,12 @@ Using HACS (RECOMMENDED)
    ```sh
    https://github.com/johnnyo21/floorplan_3d/
    ```
-3. Install NPM packages
-   ```sh
-   npm install
-   ```
-4. Enter your API in `config.js`
+3. Search for "Floorplan 3D" in HACS, Open the Description and Click on the Download button appearing in the bottom right corner of the screen. Click Reload when prompted.
+
+   <br />
+Manual Installation
+
+1. Enter your API in `config.js`
    ```js
    const API_KEY = 'ENTER YOUR API';
    ```
