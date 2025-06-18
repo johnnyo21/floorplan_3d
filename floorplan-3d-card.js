@@ -36,12 +36,14 @@ class Floorplan3dCard extends LitElement {
             config: {},
             _error: { type: String },
             _isLoading: { type: Boolean, state: true },
+            _loadingProgress: { type: Number, state: true },
         };
     }
 
     static get styles() {
         return css`
             :host {
+                position: relative; /* This contains the absolute positioning of the loader */
                 display: block;
                 height: 500px;
             }
@@ -54,22 +56,39 @@ class Floorplan3dCard extends LitElement {
             canvas {
                 display: block;
             }
-            #loader {
+            #loading-overlay {
                 position: absolute;
-                top: 50%;
-                left: 50%;
-                width: 50px;
-                height: 50px;
-                border: 5px solid #f3f3f3; /* Light grey */
-                border-top: 5px solid var(--primary-color, #3498db); /* Use HA primary color */
-                border-radius: 50%;
-                animation: spin 1s linear infinite;
-                transform: translate(-50%, -50%);
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: transparent; /* Removed background color */
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
                 z-index: 10;
+                border-radius: var(--ha-card-border-radius, 12px); /* Match Home Assistant card border radius */
             }
-            @keyframes spin {
-                0% { transform: translate(-50%, -50%) rotate(0deg); }
-                100% { transform: translate(-50%, -50%) rotate(360deg); }
+            #loading-bar-container {
+                width: 80%;
+                max-width: 400px;
+                height: 20px;
+                background-color: #f3f3f3;
+                border-radius: 10px;
+                overflow: hidden;
+            }
+            #loading-bar {
+                height: 100%;
+                background-color: var(--primary-color, #3498db);
+                width: 0%;
+                border-radius: 10px;
+                transition: width 0.1s linear;
+            }
+            #loading-text {
+                margin-top: 10px;
+                color: var(--primary-text-color, black); /* Use theme color for visibility */
+                font-size: 1.2em;
             }
             #error-message {
                 position: absolute;
@@ -93,6 +112,7 @@ class Floorplan3dCard extends LitElement {
         super();
         this._error = null;
         this._isLoading = true;
+        this._loadingProgress = 0;
         this.lightObjects = new Map();
         this.clickableObjects = [];
         this.modelGroup = null;
@@ -113,7 +133,14 @@ class Floorplan3dCard extends LitElement {
             return html`<div id="error-message">${this._error}</div>`;
         }
         return html`
-            ${this._isLoading ? html`<div id="loader"></div>` : ''}
+            ${this._isLoading ? html`
+                <div id="loading-overlay">
+                    <div id="loading-bar-container">
+                        <div id="loading-bar" style="width: ${this._loadingProgress}%"></div>
+                    </div>
+                    <div id="loading-text">Loading... ${Math.round(this._loadingProgress)}%</div>
+                </div>
+            ` : ''}
             <div id="container" @click=${this._boundOnMouseClick}></div>
         `;
     }
@@ -215,10 +242,20 @@ class Floorplan3dCard extends LitElement {
     }
 
     loadModel() {
-        const onProgress = (xhr) => {
-            // This can be used to show a more detailed progress bar if desired.
-            // For now, the spinner is sufficient.
+        const onMtlProgress = (xhr) => {
+            if (xhr.lengthComputable) {
+                // MTL is the first 50%
+                this._loadingProgress = (xhr.loaded / xhr.total) * 50;
+            }
         };
+
+        const onObjProgress = (xhr) => {
+            if (xhr.lengthComputable) {
+                // OBJ is the second 50%
+                this._loadingProgress = 50 + (xhr.loaded / xhr.total) * 50;
+            }
+        };
+
         const onError = (error) => {
             this._error = `Could not load model: ${error}`;
             this._isLoading = false;
@@ -270,10 +307,10 @@ class Floorplan3dCard extends LitElement {
                 this.controls.update();
                 
                 this.updateLightStates();
-                this._isLoading = false; // Hide spinner on success
+                this._isLoading = false;
 
-            }, onProgress, onError);
-        }, onProgress, onError);
+            }, onObjProgress, onError);
+        }, onMtlProgress, onError);
     }
     
     createLights(model, container) {
