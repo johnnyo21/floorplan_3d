@@ -162,14 +162,3 @@ See the [open issues](https://github.com/github_username/repo_name/issues) for a
 Distributed under the MIT License. See `LICENSE.txt` for more information.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-
-
-<!-- CONTACT -->
-## Contact
-
-Johnny - corrgraphics@gmail.com
-
-Project Link: https://github.com/johnnyo21/floorplan_3d
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
