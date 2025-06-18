@@ -12,7 +12,7 @@
   <p align="center">
     This card uses three.js to render a 3D model of your home exported from Sweet Home 3d or other software (.obj/.mtl). It is configurable to render your lights in real time by associating them with your light entities and placing the light sources in your model.
     <br />
-    <a href="https://github.com/johnnyo21/floorplan_3d"><strong>View Demo »</strong></a>
+    <a href="https://youtu.be/OksZrxFuF1w"><strong>View Demo »</strong></a>
     <br />
     <br />
     <a href="https://github.com/johnnyo21/floorplan_3d">Get Help</a>
