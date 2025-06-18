@@ -57,7 +57,7 @@ Once you have the model of your home completed using Sweet Home 3D.
 * (OPTIONAL) Navigate to 3D view --> Modify 3D view --> Walls transparency --> Drag the Slider slightly to the right to add a little transparency to your models walls.
 * Navigate to 3D view --> Export to OBJ format --> Save the files (OBJ - Wavefront) to a folder on your computer. (Save as floorplan.obj or something similar)
 * Confirm you now see in this folder floorplan.obj, floorplan.mtl and any texture image files associated with your model.
-* Access the www folder inside of home assistant. Create a new folder inside of this directory and copy all of these files over (<config>/www/floorplan/YOUR_EXPORTED_FILES)
+* Access the www folder inside of home assistant. Create a new folder inside of this directory and copy all of these files over (/www/floorplan/YOUR_EXPORTED_FILES)
 
 
 
