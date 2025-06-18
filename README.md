@@ -66,7 +66,7 @@ Once you have the model of your home completed using Sweet Home 3D.
 Using HACS (RECOMMENDED)
 
 1. If HACS is not installed yet, download it following the instructions @ <a href="https://hacs.xyz/docs/setup/download/">hacs.xyz</a>
-2. Navigate to HACS in the sidebar of your home assistant dashboard and click on the 3 dots in the upper right corner of the screen. Navigate to "Custom repositories".  A dialog should appear with 2 input fields. Under Repository enter the github url below and under the Type dropdown select "Integration".
+2. Navigate to HACS in the sidebar of your home assistant dashboard and click on the 3 dots in the upper right corner of the screen. Navigate to "Custom repositories".  A dialog should appear with 2 input fields. Under Repository enter the github url below and under the Type dropdown select "Dashboard".
    ```sh
    https://github.com/johnnyo21/floorplan_3d/
    ```
