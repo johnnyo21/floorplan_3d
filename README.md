@@ -63,10 +63,12 @@ Once you have the model of your home completed using Sweet Home 3D.
 
 ### Installation
 
-1. Get a free API Key at [https://example.com](https://example.com)
-2. Clone the repo
+Using HACS (RECOMMENDED)
+
+1. If HACS is not installed yet, download it following the instructions @ <a href="https://hacs.xyz/docs/setup/download/">hacs.xyz</a>
+2. Navigate to HACS in the sidebar of your home assistant dashboard and click on the 3 dots in the upper right corner of the screen. Navigate to "Custom repositories".  A dialog should appear with 2 input fields. Under Repository enter the github url below and under the Type dropdown select "Integration".
    ```sh
-   git clone https://github.com/github_username/repo_name.git
+   https://github.com/johnnyo21/floorplan_3d/
    ```
 3. Install NPM packages
    ```sh
