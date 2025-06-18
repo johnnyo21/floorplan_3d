@@ -142,10 +142,12 @@ Manual Installation
 <!-- ROADMAP -->
 ## Roadmap
 
-- [ ] Feature 1
-- [ ] Feature 2
-- [ ] Feature 3
-    - [ ] Nested Feature
+- [X] Associate Light Sources with Light Entities and Track State, Brightness, Color.
+- [ ] Associate Door and Window Positions with Door and Window Switch Entities and Track State.
+- [ ] Associate Ceiling Fan and Exhaust Fans with Fan Entities and Animate based on State.
+- [ ] Associate Misc. Entities (ie. temperature, alarm, motion, etc.)
+- [ ] Optimize Performance with Large Models
+    - [ ] Compress and Optimize for Web the Model itself. 
 
 See the [open issues](https://github.com/github_username/repo_name/issues) for a full list of proposed features (and known issues).
 
@@ -166,6 +168,6 @@ Distributed under the MIT License. See `LICENSE.txt` for more information.
 
 Your Name - [@twitter_handle](https://twitter.com/twitter_handle) - email@email_client.com
 
-Project Link: [https://github.com/github_username/repo_name](https://github.com/github_username/repo_name)
+Project Link: [https://github.com/johnnyo21/floorplan_3d(https://github.com/johnnyo21/floorplan_3d)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
