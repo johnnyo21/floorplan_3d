@@ -166,8 +166,8 @@ Distributed under the MIT License. See `LICENSE.txt` for more information.
 <!-- CONTACT -->
 ## Contact
 
-Your Name - [@twitter_handle](https://twitter.com/twitter_handle) - email@email_client.com
+Johnny - corrgraphics@gmail.com
 
-Project Link: [https://github.com/johnnyo21/floorplan_3d(https://github.com/johnnyo21/floorplan_3d)
+Project Link: https://github.com/johnnyo21/floorplan_3d
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
