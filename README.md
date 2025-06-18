@@ -90,9 +90,52 @@ Manual Installation
 <!-- USAGE EXAMPLES -->
 ## Usage
 
-Use this space to show useful examples of how a project can be used. Additional screenshots, code examples and demos work well in this space. You may also link to more resources.
+1. Navigate to the Dashboard that you want to add your floorplan to.
+2. Edit the dashboard and add a new card.  When prompted search for or scroll down to "3D Floorplan Card" and add it to your dashboard.
+3. In the card configuration you will need to direct the card to your .obj model (see prerequisites above).  Be sure your filenames match what you have saved in the `/www/floorplan/` directory. 
+   ```sh
+   type: custom:floorplan-3d-card
+   obj_path: /local/floorplan/floorplan.obj
+   mtl_path: /local/floorplan/floorplan.mtl
+   ```
+4. Save the card and ensure that your model is loading properly on your dashboard.
+5. Now to add our light entities to our model. Edit the card and add the following under our file paths in the yaml configuration. Save the Card
+   ```sh
+   debug_mode: true
+   ```
+6. Open your browsers Developers Console (F12 on your Keyboard or Right Click and Select Inspect Element) .. Click on Console and Refresh the Page.
+7. Ensure you are looking at your model from the top down and click on the floor where you would like to add a light source in a room.
+8. You should see in the debug console a message that reads: `[FLOORPLAN DEBUG] Click coordinates: position: { x: 505.110, y: 0.000, z: 572.587 }` Write that down with the associated light name. You can keep clicking on other lights and record them or proceed to adding your light via yaml below. 
+9. Edit the card again: Add the following under `debug_mode:` Change the X and Z coordinate to match the values you have written down and adjust the Y coordinate to the height of the light in the space.  Start with 230 for 8-9 foot walls and adjust from there if needed. You should see a Red Dot Appear on your model indicating the location of your new light source.  Save the Card. 
+   ```sh
+   light_map:
+    - entity_id: light.YOUR_LIGHT_ENTITY
+      position: { x: 505, y: 230, z: 572 }
+   ```
+10. The light in your model should now be followng the associated light entity.  It will turn on/off and if dimmable or RGB will follow the brightness and color of the light as well. Edit the configuration to `debug_mode: false` once you have added all of your light sources.  (Note: if you have several lights or a complex model, try adding the lights via the "Raw Configuration Editor" to save loading time between edits)
+11. Additional Configuration:
+```sh
+   ambient_light_intensity: X.X - OPTIONAL - changes the ambient light shining on the model - (eg. 0.1 is very dark, 0.9 is very bright)
+   intensity: X.X - OPTIONAL - changes a light entities brightness offset. (eg. 1.4 would make the light 40% brighter than its current brightness, 50% x 1.4 = 70%)
+   color: "0xffefcd" - OPTIONAL - changes the color of the light if the light source is not RGB.
+   ```
 
-_For more examples, please refer to the [Documentation](https://example.com)_
+13. Example Configuration:
+   ```sh
+   type: custom:floorplan-3d-card
+   obj_path: /local/floorplan/floorplan.obj
+   mtl_path: /local/floorplan/floorplan.mtl
+   debug_mode: false
+   ambient_light_intensity: 0.4
+   light_map:
+    - entity_id: light.YOUR_LIGHT_ENTITY_1
+      color: "0xffefcd"
+      intensity: 1.4
+      position: { x: 505, y: 230, z: 572 }
+    - entity_id: light.YOUR_LIGHT_ENTITY_2
+      color: "0xffefcd"
+      position: { x: 105, y: 230, z: 950 }
+   ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
