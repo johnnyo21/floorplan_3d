@@ -57,7 +57,7 @@ Once you have the model of your home completed using Sweet Home 3D.
 * (OPTIONAL) Navigate to 3D view --> Modify 3D view --> Walls transparency --> Drag the Slider slightly to the right to add a little transparency to your models walls.
 * Navigate to 3D view --> Export to OBJ format --> Save the files (OBJ - Wavefront) to a folder on your computer. (Save as floorplan.obj or something similar)
 * Confirm you now see in this folder floorplan.obj, floorplan.mtl and any texture image files associated with your model.
-* Access the www folder inside of home assistant. Create a new folder inside of this directory and copy all of these files over (/www/floorplan/YOUR_EXPORTED_FILES)
+* Access the www folder inside of home assistant. Create a new folder inside of this directory and copy all of these files over `/www/floorplan/YOUR_EXPORTED_FILES`
 
 
 
@@ -75,15 +75,13 @@ Using HACS (RECOMMENDED)
    <br />
 Manual Installation
 
-1. Enter your API in `config.js`
-   ```js
-   const API_KEY = 'ENTER YOUR API';
-   ```
-5. Change git remote url to avoid accidental pushes to base project
-   ```sh
-   git remote set-url origin github_username/repo_name
-   git remote -v # confirm the changes
-   ```
+1. Download the most recent version of `floorplan-3d-card.js` from Github and copy it to `/www/floorplan/` on your home assistant installation. 
+  
+2. Navigate to Settings --> Dashboards in Home Assistant.  Click the 3 dots in the upper right corner and navigate to "Resources".
+
+3. Click "Add Resource" and enter the url: `/floorplan/floorplan-3d-card.js` and ensure JavaScript module is selected.
+   
+4. Restart Home Assistant.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
