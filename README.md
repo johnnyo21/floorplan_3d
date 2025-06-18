@@ -46,9 +46,10 @@
 <!-- GETTING STARTED -->
 ## Getting Started
 
-First things first, you will need a 3d model of your home. 
-An eazy way to get started is with <a href="https://www.sweethome3d.com/">Sweet Home 3D (FREE SOFTWARE)</a> - Google some tutorials or videos to help you get started.
-Alternatively, you can use any other 3d design software as long as you can export your models in (.OBJ / .MTL) format.
+<h3>First things first, you will need a 3d model of your home. </h3>
+<p>An eazy way to get started is with <a href="https://www.sweethome3d.com/">Sweet Home 3D (FREE SOFTWARE)</a> - Google some tutorials or videos to help you get started.
+<br />
+Alternatively, you can use any other 3d design software as long as you can export your models in (.OBJ / .MTL) format.</p>
 
 ### Prerequisites
 
