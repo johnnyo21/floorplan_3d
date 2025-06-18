@@ -114,11 +114,9 @@ Manual Installation
    ```
 10. The light in your model should now be followng the associated light entity.  It will turn on/off and if dimmable or RGB will follow the brightness and color of the light as well. Edit the configuration to `debug_mode: false` once you have added all of your light sources.  (Note: if you have several lights or a complex model, try adding the lights via the "Raw Configuration Editor" to save loading time between edits)
 11. Additional Configuration:
-```sh
-   ambient_light_intensity: X.X - OPTIONAL - changes the ambient light shining on the model - (eg. 0.1 is very dark, 0.9 is very bright)
-   intensity: X.X - OPTIONAL - changes a light entities brightness offset. (eg. 1.4 would make the light 40% brighter than its current brightness, 50% x 1.4 = 70%)
-   color: "0xffefcd" - OPTIONAL - changes the color of the light if the light source is not RGB.
-   ```
+   * ambient_light_intensity: X.X - OPTIONAL - changes the ambient light shining on the model - (eg. 0.1 is very dark, 0.9 is very bright)
+   * intensity: X.X - OPTIONAL - changes a light entities brightness offset. (eg. 1.4 would make the light 40% brighter than its current brightness, 50% x 1.4 = 70%)
+   * color: "0xffefcd" - OPTIONAL - changes the color of the light if the light source is not RGB.
 
 13. Example Configuration:
    ```sh
