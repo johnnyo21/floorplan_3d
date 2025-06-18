@@ -46,8 +46,9 @@
 <!-- GETTING STARTED -->
 ## Getting Started
 
-This is an example of how you may give instructions on setting up your project locally.
-To get a local copy up and running follow these simple example steps.
+First things first, you will need a 3d model of your home. 
+An eazy way to get started is with <a href="https://www.sweethome3d.com/">Sweet Home 3D (FREE SOFTWARE)</a> - Google some tutorials or videos to help you get started.
+Alternatively, you can use any other 3d design software as long as you can export your models in (.OBJ / .MTL) format.
 
 ### Prerequisites
 
