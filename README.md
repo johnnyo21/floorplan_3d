@@ -10,7 +10,7 @@
 <h3 align="center">Floorplan 3D - A Home Assistant 3D Floorplan Card</h3>
 
   <p align="center">
-    This card uses three.js to render a 3D model of your home exported from Sweet Home 3d or other software (.obj/.mtl). It is configurable to render your lights in real time by associating them with your light entities and placing the light sources in your model.
+    This card uses babylon.js to render a 3D model of your home exported from Sweet Home 3d or other software (.obj/.mtl). It is configurable to render your lights in real time by associating them with your light entities and placing the light sources in your model.
     <br />
     <a href="https://youtu.be/OksZrxFuF1w"><strong>View Demo »</strong></a>
     <br />
@@ -39,7 +39,7 @@
 
 ### Built With
 
-* Three.js - <a href="https://threejs.org">threejs.org</a> - Open Source 3d javascrypt library
+* Babylon.js - <a href="https://babylonjs.com">babylonjs.com</a> - Open Source 3d javascrypt library
 * Home Assistant - <a href="https://homeassistant.io">homeassistant.io</a> - Open Source Home Automation Software
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
