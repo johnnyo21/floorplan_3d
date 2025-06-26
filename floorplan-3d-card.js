@@ -4,10 +4,10 @@ import {
   css,
 } from "https://unpkg.com/lit-element@2.4.0/lit-element.js?module";
 
-// Helper to load scripts sequentially. This is more reliable than ES module imports from CDNs for three.js.
-const loadScript = (src) => {
+// Helper to load Babylon.js scripts sequentially.
+const loadScript = (src, global) => {
     return new Promise((resolve, reject) => {
-        if (document.querySelector(`script[src="${src}"]`)) {
+        if (window[global]) {
             return resolve();
         }
         const script = document.createElement('script');
@@ -18,12 +18,10 @@ const loadScript = (src) => {
     });
 };
 
-const loadThreeJs = async () => {
+const loadBabylonJs = async () => {
     // These must be loaded in order.
-    await loadScript('https://cdn.jsdelivr.net/npm/three@0.138.3/build/three.min.js');
-    await loadScript('https://cdn.jsdelivr.net/npm/three@0.138.3/examples/js/loaders/MTLLoader.js');
-    await loadScript('https://cdn.jsdelivr.net/npm/three@0.138.3/examples/js/loaders/OBJLoader.js');
-    await loadScript('https://cdn.jsdelivr.net/npm/three@0.138.3/examples/js/controls/OrbitControls.js');
+    await loadScript('https://cdn.babylonjs.com/babylon.js', 'BABYLON');
+    await loadScript('https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js', 'BABYLON.OBJFileLoader');
 };
 
 
@@ -43,7 +41,7 @@ class Floorplan3dCard extends LitElement {
     static get styles() {
         return css`
             :host {
-                position: relative; /* This contains the absolute positioning of the loader */
+                position: relative;
                 display: block;
                 height: 500px;
             }
@@ -54,7 +52,10 @@ class Floorplan3dCard extends LitElement {
                 overflow: hidden;
             }
             canvas {
+                width: 100%;
+                height: 100%;
                 display: block;
+                outline: none;
             }
             #loading-overlay {
                 position: absolute;
@@ -62,13 +63,13 @@ class Floorplan3dCard extends LitElement {
                 left: 0;
                 width: 100%;
                 height: 100%;
-                background: transparent; /* Removed background color */
+                background: transparent;
                 display: flex;
                 flex-direction: column;
                 justify-content: center;
                 align-items: center;
                 z-index: 10;
-                border-radius: var(--ha-card-border-radius, 12px); /* Match Home Assistant card border radius */
+                border-radius: var(--ha-card-border-radius, 12px);
             }
             #loading-bar-container {
                 width: 80%;
@@ -87,7 +88,7 @@ class Floorplan3dCard extends LitElement {
             }
             #loading-text {
                 margin-top: 10px;
-                color: var(--primary-text-color, black); /* Use theme color for visibility */
+                color: var(--primary-text-color, black);
                 font-size: 1.2em;
             }
             #error-message {
@@ -114,16 +115,14 @@ class Floorplan3dCard extends LitElement {
         this._isLoading = true;
         this._loadingProgress = 0;
         this.lightObjects = new Map();
-        this.clickableObjects = [];
-        this.modelGroup = null;
-        this._boundOnMouseClick = this.onMouseClick.bind(this);
+        this.engine = null;
+        this.scene = null;
         this._boundOnWindowResize = this.onWindowResize.bind(this);
-        this._boundRender = this.renderThree.bind(this);
     }
     
     setConfig(config) {
-        if (!config || !config.obj_path || !config.mtl_path) {
-            throw new Error("Configuration error: 'obj_path' and 'mtl_path' are required.");
+        if (!config || !config.obj_path) { // MTL is often optional or embedded
+            throw new Error("Configuration error: 'obj_path' is required.");
         }
         this.config = config;
     }
@@ -141,19 +140,22 @@ class Floorplan3dCard extends LitElement {
                     <div id="loading-text">Loading... ${Math.round(this._loadingProgress)}%</div>
                 </div>
             ` : ''}
-            <div id="container" @click=${this._boundOnMouseClick}></div>
+            <div id="container">
+                 <canvas id="renderCanvas"></canvas>
+            </div>
         `;
     }
 
     firstUpdated(changedProperties) {
         super.firstUpdated(changedProperties);
         this.container = this.shadowRoot.querySelector('#container');
+        this.canvas = this.shadowRoot.querySelector('#renderCanvas');
         this.loadAndInit();
     }
     
     updated(changedProperties) {
         super.updated(changedProperties);
-        if (this.config && this.hass) {
+        if (this.config && this.hass && this.scene) {
             this.updateLightStates();
         }
     }
@@ -161,10 +163,10 @@ class Floorplan3dCard extends LitElement {
     async loadAndInit() {
         this._isLoading = true;
         try {
-            await loadThreeJs();
-            this.initThreeJs();
+            await loadBabylonJs();
+            await this.initBabylonJs(); // Now an async function
         } catch (error) {
-             console.error("Floorplan3D-Card: Failed to load Three.js libraries.", error);
+             console.error("Floorplan3D-Card: Failed to load Babylon.js libraries.", error);
              this._error = `Failed to load libraries: ${error.message}`;
              this._isLoading = false;
         }
@@ -172,174 +174,150 @@ class Floorplan3dCard extends LitElement {
 
     connectedCallback() {
         super.connectedCallback();
-        this.resizeObserver = new ResizeObserver(this._boundOnWindowResize);
-        this.resizeObserver.observe(this);
+        window.addEventListener('resize', this._boundOnWindowResize);
     }
 
     disconnectedCallback() {
         super.disconnectedCallback();
-        cancelAnimationFrame(this.animationFrameId);
-        if (this.resizeObserver) this.resizeObserver.disconnect();
-        if (this.renderer) {
-            this.renderer.dispose();
+        window.removeEventListener('resize', this._boundOnWindowResize);
+        if (this.engine) {
+            this.engine.dispose();
+            this.engine = null;
         }
     }
 
-    initThreeJs() {
+    async initBabylonJs() {
+        // Check for WebGPU support and create the appropriate engine.
         try {
-            this.setupScene();
-            this.loadModel();
-            this.renderThree();
-            this.updateLightStates();
-        } catch (error) {
-            console.error("Floorplan3D-Card: Initialization failed.", error);
-            this._error = `Initialization failed: ${error.message}`;
-            this._isLoading = false;
+            if (await BABYLON.WebGPUEngine.IsSupportedAsync) {
+                console.log("Floorplan3D-Card: WebGPU is supported. Creating WebGPUEngine.");
+                this.engine = new BABYLON.WebGPUEngine(this.canvas);
+                await this.engine.initAsync();
+            } else {
+                console.log("Floorplan3D-Card: WebGPU not supported. Falling back to WebGL.");
+                this.engine = new BABYLON.Engine(this.canvas, true, { preserveDrawingBuffer: true, stencil: true });
+            }
+        } catch (e) {
+            console.error("Floorplan3D-Card: Could not create engine. Falling back to WebGL.", e);
+            this.engine = new BABYLON.Engine(this.canvas, true, { preserveDrawingBuffer: true, stencil: true });
         }
-    }
 
-    setupScene() {
-        const width = this.container.clientWidth;
-        const height = this.container.clientHeight;
+        this.scene = new BABYLON.Scene(this.engine);
+        this.scene.clearColor = new BABYLON.Color4(0, 0, 0, 0); // Transparent background
 
-        this.scene = new THREE.Scene();
-        this.scene.background = null;
-
-        const aspect = width / height;
-        const frustumSize = 100;
-        this.camera = new THREE.OrthographicCamera(
-            frustumSize * aspect / -2,
-            frustumSize * aspect / 2,
-            frustumSize / 2,
-            frustumSize / -2,
-            0.1,
-            2000
-        );
-        this.scene.add(this.camera);
-
-        this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        this.renderer.setSize(width, height);
-        this.renderer.setPixelRatio(window.devicePixelRatio);
-        this.container.appendChild(this.renderer.domElement);
-
-        this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
-        this.controls.enableDamping = true;
-        this.controls.mouseButtons = {
-            LEFT: THREE.MOUSE.ROTATE,
-            MIDDLE: THREE.MOUSE.DOLLY,
-            RIGHT: THREE.MOUSE.PAN
-        };
-
-
+        this.setupCamera();
+        
         const ambientIntensity = this.config.ambient_light_intensity ?? 1.0;
-        const ambientLight = new THREE.AmbientLight(0xffffff, ambientIntensity);
-        this.scene.add(ambientLight);
+        new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), this.scene).intensity = ambientIntensity;
 
-        this.raycaster = new THREE.Raycaster();
-        this.mouse = new THREE.Vector2();
+        this.loadModel();
+
+        this.engine.runRenderLoop(() => {
+            if (this.scene) {
+                this.updateLightIntensityTransitions();
+                this.scene.render();
+            }
+        });
+
+        this.setupInteractions();
+    }
+    
+    setupCamera() {
+        this.camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.5, 3, new BABYLON.Vector3(0, 0, 0), this.scene);
+        this.camera.attachControl(this.canvas, true);
+        this.camera.mode = BABYLON.Camera.ORTHOGRAPHIC_CAMERA;
+        this.camera.orthoTop = 50;
+        this.camera.orthoBottom = -50;
+        this.camera.orthoLeft = -50;
+        this.camera.orthoRight = 50;
+        this.onWindowResize(); // Set initial ortho values based on aspect ratio
     }
 
     loadModel() {
-        const onMtlProgress = (xhr) => {
-            if (xhr.lengthComputable) {
-                // MTL is the first 50%
-                this._loadingProgress = (xhr.loaded / xhr.total) * 50;
+        const onProgress = (evt) => {
+            if (evt.lengthComputable) {
+                this._loadingProgress = (evt.loaded / evt.total) * 100;
             }
         };
 
-        const onObjProgress = (xhr) => {
-            if (xhr.lengthComputable) {
-                // OBJ is the second 50%
-                this._loadingProgress = 50 + (xhr.loaded / xhr.total) * 50;
-            }
-        };
-
-        const onError = (error) => {
-            this._error = `Could not load model: ${error}`;
+        const onError = (scene, message, exception) => {
+            console.error("Floorplan3D-Card: Model loading error.", message, exception);
+            this._error = `Could not load model: ${message}`;
             this._isLoading = false;
         };
         
-        const mtlLoader = new THREE.MTLLoader();
-        mtlLoader.setPath(this.config.mtl_path.substring(0, this.config.mtl_path.lastIndexOf('/') + 1));
-        mtlLoader.load(this.config.mtl_path.split('/').pop(), (materials) => {
-            materials.preload();
-            const objLoader = new THREE.OBJLoader();
-            objLoader.setMaterials(materials);
-            objLoader.setPath(this.config.obj_path.substring(0, this.config.obj_path.lastIndexOf('/') + 1));
-            objLoader.load(this.config.obj_path.split('/').pop(), (object) => {
-                
-                object.traverse((child) => {
-                    if (child.isMesh) {
-                        child.castShadow = true;
-                        child.receiveShadow = true;
-                    }
-                });
-                
-                this.modelGroup = new THREE.Group();
-                this.modelGroup.add(object);
-                this.scene.add(this.modelGroup);
+        const modelUrl = this.config.obj_path;
+        const rootUrl = modelUrl.substring(0, modelUrl.lastIndexOf('/') + 1);
+        const fileName = modelUrl.split('/').pop();
 
-                this.createLights(object, this.modelGroup);
+        BABYLON.SceneLoader.ImportMesh("", rootUrl, fileName, this.scene, (meshes) => {
+            const modelGroup = new BABYLON.AbstractMesh("ModelRoot", this.scene);
+            meshes.forEach(m => {
+                m.parent = modelGroup;
+            });
+            
+            const globalShadows = this.config.shadows !== false;
+            if (globalShadows) {
+                this.shadowGenerator = new BABYLON.ShadowGenerator(1024, this.scene.lights[this.scene.lights.length - 1]); // Placeholder light
+                this.shadowGenerator.useBlurExponentialShadowMap = true;
+                this.shadowGenerator.blurKernel = 32;
+            }
 
-                const box = new THREE.Box3().setFromObject(this.modelGroup);
-                const center = box.getCenter(new THREE.Vector3());
-                const size = box.getSize(new THREE.Vector3());
-                
-                this.modelGroup.position.sub(center);
+            meshes.forEach(mesh => {
+                mesh.receiveShadows = globalShadows;
+            });
+            
+            this.createLights();
 
-                const maxDim = Math.max(size.x, size.y, size.z);
-                const aspect = this.container.clientWidth / this.container.clientHeight;
-                const padding = 1.2;
+            // Center and frame the model
+            const bounds = modelGroup.getHierarchyBoundingVectors();
+            const size = bounds.max.subtract(bounds.min);
+            const center = bounds.min.add(size.scale(0.5));
+            modelGroup.position = center.scale(-1);
 
-                this.camera.left = maxDim * aspect / -2 * padding;
-                this.camera.right = maxDim * aspect / 2 * padding;
-                this.camera.top = maxDim / 2 * padding;
-                this.camera.bottom = maxDim / -2 * padding;
-                this.camera.near = 0.01;
-                this.camera.far = maxDim * 20;
-                this.camera.updateProjectionMatrix();
+            const maxDim = Math.max(size.x, size.y, size.z);
+            this.camera.radius = maxDim * 1.5;
+            this.camera.target = BABYLON.Vector3.Zero();
 
-                this.camera.position.set(0, maxDim * 2, 0);
-
-                this.controls.target.set(0, 0, 0);
-                this.controls.update();
-                
-                this.updateLightStates();
-                this._isLoading = false;
-
-            }, onObjProgress, onError);
-        }, onMtlProgress, onError);
+            this.updateLightStates();
+            this._isLoading = false;
+            
+        }, onProgress, onError);
     }
     
-    createLights(model, container) {
+    createLights() {
         if (!this.config.light_map) return;
         
-        const modelBox = new THREE.Box3().setFromObject(model);
-        const modelSizeVec = modelBox.getSize(new THREE.Vector3());
-        const defaultLightDistance = Math.max(modelSizeVec.x, modelSizeVec.y, modelSizeVec.z) * 5;
+        const globalShadows = this.config.shadows !== false;
 
         this.config.light_map.forEach(lightConfig => {
             const { entity_id, position, object_name } = lightConfig;
 
-            const hasPosition = position && position.x != null && position.y != null && position.z != null;
-
-            if (!entity_id || (!hasPosition && !object_name)) {
-                return;
-            }
+            if (!entity_id) return;
             
-            const lightColor = lightConfig.color ? parseInt(lightConfig.color) : 0xffff00;
+            const lightColor = lightConfig.color ? BABYLON.Color3.FromHexString(lightConfig.color) : new BABYLON.Color3(1, 1, 0);
             const maxIntensity = lightConfig.intensity ?? 1;
 
-            const pointLight = new THREE.PointLight(
-                lightColor,
-                0, // Start with intensity 0
-                lightConfig.distance || defaultLightDistance, 
-                lightConfig.decay || 2
-            );
+            const pointLight = new BABYLON.PointLight(entity_id, BABYLON.Vector3.Zero(), this.scene);
+            pointLight.diffuse = lightColor;
+            pointLight.specular = lightColor;
+            pointLight.intensity = 0; // Start off
             
-            pointLight.castShadow = true;
+            let lightPosition = null;
+
+            if (position) {
+                lightPosition = new BABYLON.Vector3(parseFloat(position.x), parseFloat(position.y), parseFloat(position.z));
+            } else if (object_name) {
+                 const objectMesh = this.scene.getMeshByName(object_name);
+                 if (objectMesh) {
+                    lightPosition = objectMesh.getAbsolutePosition();
+                    objectMesh.userData = { entity_id }; // Attach entity_id for clicking
+                 }
+            }
+
+            if (!lightPosition) return;
+            
+            pointLight.position = lightPosition;
 
             this.lightObjects.set(entity_id, {
                 light: pointLight,
@@ -347,41 +325,17 @@ class Floorplan3dCard extends LitElement {
                 targetIntensity: 0,
                 maxIntensity: maxIntensity,
             });
-            
-            if (hasPosition) {
-                pointLight.position.set(
-                    parseFloat(position.x), 
-                    parseFloat(position.y), 
-                    parseFloat(position.z)
-                );
-                
-                const clickableRadius = Math.max(modelSizeVec.x, modelSizeVec.y, modelSizeVec.z) / 100;
 
-                const isDebug = this.config.debug_mode === true;
-                const helperMaterial = isDebug 
-                    ? new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.5 })
-                    : new THREE.MeshBasicMaterial({ visible: false });
-                
-                const geometry = new THREE.SphereGeometry(clickableRadius, 16, 16);
-                const clickableTarget = new THREE.Mesh(geometry, helperMaterial);
-
-                clickableTarget.position.copy(pointLight.position);
-                clickableTarget.userData.entity_id = entity_id;
-                
-                container.add(clickableTarget);
-                this.clickableObjects.push(clickableTarget);
-
-            } else if (object_name) {
-                model.traverse((child) => {
-                    if (child.isMesh && child.name === object_name) {
-                        const box = new THREE.Box3().setFromObject(child);
-                        box.getCenter(pointLight.position);
-                        child.userData.entity_id = entity_id;
-                        this.clickableObjects.push(child);
+            // Add light to shadow generator if enabled
+            if (globalShadows && lightConfig.cast_shadows === true && this.shadowGenerator) {
+                this.shadowGenerator.addShadowCaster(pointLight);
+                // Add all meshes to the render list for this shadow caster
+                this.scene.meshes.forEach(m => {
+                    if (m.name !== "ModelRoot") { // Don't add the root itself
+                        this.shadowGenerator.getShadowMap().renderList.push(m);
                     }
                 });
             }
-            container.add(pointLight);
         });
     }
 
@@ -391,13 +345,11 @@ class Floorplan3dCard extends LitElement {
         this.lightObjects.forEach((lightData, entity_id) => {
             const state = this.hass.states[entity_id];
             if (state) {
+                 const lightConfig = this.config.light_map.find(l => l.entity_id === entity_id);
                 if (state.state === 'on' && state.attributes.rgb_color) {
-                    lightData.light.color.setRGB(...state.attributes.rgb_color.map(c => c / 255));
-                } else {
-                     const lightConfig = this.config.light_map.find(l => l.entity_id === entity_id);
-                     if(lightConfig && lightConfig.color){
-                        lightData.light.color.set(parseInt(lightConfig.color));
-                     }
+                    lightData.light.diffuse = BABYLON.Color3.FromInts(...state.attributes.rgb_color);
+                } else if (lightConfig && lightConfig.color) {
+                    lightData.light.diffuse = BABYLON.Color3.FromHexString(lightConfig.color);
                 }
                 
                 if (state.state === 'on') {
@@ -409,76 +361,48 @@ class Floorplan3dCard extends LitElement {
             }
         });
     }
+    
+    updateLightIntensityTransitions() {
+        this.lightObjects.forEach(lightData => {
+            const target = lightData.targetIntensity;
+            const current = lightData.light.intensity;
 
-    onMouseClick(event) {
-        if (!this.hass) return;
+            if (Math.abs(target - current) < 0.01) {
+                lightData.light.intensity = target;
+            } else {
+                lightData.light.intensity += (target - current) * 0.1;
+            }
+        });
+    }
 
-        const rect = this.renderer.domElement.getBoundingClientRect();
-        this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-        this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-        this.raycaster.setFromCamera(this.mouse, this.camera);
-        
-        const lightIntersects = this.raycaster.intersectObjects(this.clickableObjects, true);
-        if (lightIntersects.length > 0) {
-            const entity_id = lightIntersects[0].object.userData.entity_id;
-            if (entity_id) {
+    setupInteractions() {
+        this.scene.onPointerDown = (evt, pickResult) => {
+            if (pickResult.hit && pickResult.pickedMesh && pickResult.pickedMesh.userData && pickResult.pickedMesh.userData.entity_id) {
+                const entity_id = pickResult.pickedMesh.userData.entity_id;
                 this.hass.callService('light', 'toggle', { entity_id });
+                return;
             }
-            return;
-        }
-
-        if (this.config.debug_mode === true && this.modelGroup) {
-            const modelIntersects = this.raycaster.intersectObjects(this.modelGroup.children, true);
-            if (modelIntersects.length > 0) {
-                const p = modelIntersects[0].point;
-                const centerOffset = this.modelGroup.position.clone().negate();
-                const originalCoords = p.add(centerOffset);
-
-                console.log(`%c[FLOORPLAN DEBUG] Click coordinates:`, 'color: #03a9f4; font-weight: bold;', 
-                    `position: { x: ${originalCoords.x.toFixed(3)}, y: ${originalCoords.y.toFixed(3)}, z: ${originalCoords.z.toFixed(3)} }`);
+            
+            if (this.config.debug_mode === true && pickResult.hit) {
+                const p = pickResult.pickedPoint;
+                 console.log(`%c[FLOORPLAN DEBUG] Click coordinates:`, 'color: #03a9f4; font-weight: bold;', 
+                    `position: { x: ${p.x.toFixed(3)}, y: ${p.y.toFixed(3)}, z: ${p.z.toFixed(3)} }`);
             }
-        }
+        };
     }
 
     onWindowResize() {
-        if (!this.renderer || !this.camera) return;
+        if (!this.engine || !this.camera) return;
+        this.engine.resize();
         
-        const width = this.container.clientWidth;
-        const height = this.container.clientHeight;
-        const aspect = width / height;
-
-        const frustumHeight = this.camera.top - this.camera.bottom;
-        const frustumWidth = frustumHeight * aspect;
-
-        this.camera.left = frustumWidth / -2;
-        this.camera.right = frustumWidth / 2;
-        this.camera.updateProjectionMatrix();
-
-        this.renderer.setSize(width, height);
+        const rect = this.container.getBoundingClientRect();
+        const aspect = rect.width / rect.height;
+        
+        const orthoSize = this.camera.orthoTop; // Use the current top as the base size
+        this.camera.orthoLeft = -orthoSize * aspect;
+        this.camera.orthoRight = orthoSize * aspect;
     }
 
-    renderThree() {
-        this.animationFrameId = requestAnimationFrame(this._boundRender);
-        
-        this.lightObjects.forEach(lightData => {
-            const target = lightData.targetIntensity;
-            const current = lightData.currentIntensity;
-
-            if (Math.abs(target - current) < 0.01) {
-                lightData.currentIntensity = target;
-            } else {
-                lightData.currentIntensity += (target - current) * 0.1;
-            }
-            
-            lightData.light.intensity = lightData.currentIntensity;
-            lightData.light.visible = lightData.light.intensity > 0.01;
-        });
-
-        if (this.controls) this.controls.update();
-        if(this.renderer) this.renderer.render(this.scene, this.camera);
-    }
-    
     getCardSize() {
         return 8;
     }
@@ -489,7 +413,7 @@ customElements.define('floorplan-3d-card', Floorplan3dCard);
 window.customCards = window.customCards || [];
 window.customCards.push({
     type: 'floorplan-3d-card',
-    name: '3D Floorplan Card',
-    description: 'An interactive 3D floorplan of your home.',
+    name: '3D Floorplan Card (Babylon.js)',
+    description: 'An interactive 3D floorplan of your home, powered by Babylon.js. and Supports WebGPU',
     preview: true,
 });
