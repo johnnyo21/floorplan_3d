@@ -226,11 +226,12 @@ class Floorplan3dCard extends LitElement {
         this.camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.5, 3, new BABYLON.Vector3(0, 0, 0), this.scene);
         this.camera.attachControl(this.canvas, true);
         this.camera.mode = BABYLON.Camera.ORTHOGRAPHIC_CAMERA;
+        // Initial ortho values, will be overridden after model load
         this.camera.orthoTop = 50;
         this.camera.orthoBottom = -50;
         this.camera.orthoLeft = -50;
         this.camera.orthoRight = 50;
-        this.onWindowResize(); // Set initial ortho values based on aspect ratio
+        this.onWindowResize();
     }
 
     loadModel() {
@@ -270,8 +271,20 @@ class Floorplan3dCard extends LitElement {
             const center = bounds.min.add(size.scale(0.5));
             modelGroup.position = center.scale(-1);
 
-            const maxDim = Math.max(size.x, size.y, size.z);
-            this.camera.radius = maxDim * 1.5;
+            // ** FIX: Set camera view to fit the model **
+            const maxDim = Math.max(size.x, size.z); // Use X and Z for a top-down view
+            const padding = 1.2; 
+
+            // Set the vertical size of the camera's view
+            this.camera.orthoTop = (maxDim / 2) * padding;
+            this.camera.orthoBottom = -this.camera.orthoTop;
+            
+            // Set radius to a safe distance to prevent clipping, especially for tall models
+            this.camera.radius = size.y * 2 > maxDim ? size.y * 2 : maxDim;
+
+            // Trigger resize to calculate the horizontal size based on aspect ratio
+            this.onWindowResize(); 
+
             this.camera.target = BABYLON.Vector3.Zero();
 
             this.updateLightStates();
@@ -323,7 +336,7 @@ class Floorplan3dCard extends LitElement {
                 maxIntensity: maxIntensity,
             });
 
-            // *** FIX: Create a ShadowGenerator for each light that casts shadows ***
+            // Create a ShadowGenerator for each light that casts shadows
             if (globalShadows && lightConfig.cast_shadows === true) {
                 const shadowGenerator = new BABYLON.ShadowGenerator(1024, pointLight);
                 shadowGenerator.useBlurExponentialShadowMap = true;
@@ -393,12 +406,15 @@ class Floorplan3dCard extends LitElement {
         if (!this.engine || !this.camera) return;
         this.engine.resize();
         
-        const rect = this.container.getBoundingClientRect();
-        const aspect = rect.width / rect.height;
-        
-        const orthoSize = this.camera.orthoTop; // Use the current top as the base size
-        this.camera.orthoLeft = -orthoSize * aspect;
-        this.camera.orthoRight = orthoSize * aspect;
+        if (this.container) {
+            const rect = this.container.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+                 const aspect = rect.width / rect.height;
+                 const orthoTop = this.camera.orthoTop;
+                 this.camera.orthoLeft = -orthoTop * aspect;
+                 this.camera.orthoRight = orthoTop * aspect;
+            }
+        }
     }
 
     getCardSize() {
