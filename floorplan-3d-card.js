@@ -257,11 +257,6 @@ class Floorplan3dCard extends LitElement {
             });
             
             const globalShadows = this.config.shadows !== false;
-            if (globalShadows) {
-                this.shadowGenerator = new BABYLON.ShadowGenerator(1024, this.scene.lights[this.scene.lights.length - 1]); // Placeholder light
-                this.shadowGenerator.useBlurExponentialShadowMap = true;
-                this.shadowGenerator.blurKernel = 32;
-            }
 
             meshes.forEach(mesh => {
                 mesh.receiveShadows = globalShadows;
@@ -289,6 +284,8 @@ class Floorplan3dCard extends LitElement {
         if (!this.config.light_map) return;
         
         const globalShadows = this.config.shadows !== false;
+        const modelRoot = this.scene.getMeshByName("ModelRoot");
+        const childMeshes = modelRoot ? modelRoot.getChildMeshes() : [];
 
         this.config.light_map.forEach(lightConfig => {
             const { entity_id, position, object_name } = lightConfig;
@@ -326,14 +323,15 @@ class Floorplan3dCard extends LitElement {
                 maxIntensity: maxIntensity,
             });
 
-            // Add light to shadow generator if enabled
-            if (globalShadows && lightConfig.cast_shadows === true && this.shadowGenerator) {
-                this.shadowGenerator.addShadowCaster(pointLight);
-                // Add all meshes to the render list for this shadow caster
-                this.scene.meshes.forEach(m => {
-                    if (m.name !== "ModelRoot") { // Don't add the root itself
-                        this.shadowGenerator.getShadowMap().renderList.push(m);
-                    }
+            // *** FIX: Create a ShadowGenerator for each light that casts shadows ***
+            if (globalShadows && lightConfig.cast_shadows === true) {
+                const shadowGenerator = new BABYLON.ShadowGenerator(1024, pointLight);
+                shadowGenerator.useBlurExponentialShadowMap = true;
+                shadowGenerator.blurKernel = 32;
+
+                // Add all meshes from the loaded model to this light's shadow map render list
+                childMeshes.forEach(m => {
+                    shadowGenerator.getShadowMap().renderList.push(m);
                 });
             }
         });
@@ -414,6 +412,6 @@ window.customCards = window.customCards || [];
 window.customCards.push({
     type: 'floorplan-3d-card',
     name: '3D Floorplan Card (Babylon.js)',
-    description: 'An interactive 3D floorplan of your home, powered by Babylon.js. and Supports WebGPU',
+    description: 'An interactive 3D floorplan of your home, powered by Babylon.js.',
     preview: true,
 });
