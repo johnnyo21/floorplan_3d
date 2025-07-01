@@ -394,6 +394,7 @@ class Floorplan3dCard extends LitElement {
                 if (state.state === 'on') {
                     const brightness = state.attributes.brightness !== undefined ? (state.attributes.brightness / 255) : 1;
                     lightData.targetIntensity = lightData.maxIntensity * brightness;
+                    console.log(`Floorplan3D-Card: Setting light ${entity_id} to intensity ${lightData.targetIntensity}`);
                 } else {
                     lightData.targetIntensity = 0;
                 }
