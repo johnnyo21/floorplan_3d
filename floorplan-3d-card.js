@@ -380,8 +380,8 @@ class Floorplan3dCard extends LitElement {
         this.lightObjects.forEach((lightData, entity_id) => {
             const state = this.hass.states[entity_id];
             if (state) {
-                // First, set the color
-                if (state.attributes.rgb_color) {
+                // First, set the color based on the working Three.js logic
+                if (state.state === 'on' && state.attributes.rgb_color) {
                     lightData.light.diffuse = BABYLON.Color3.FromInts(...state.attributes.rgb_color);
                 } else {
                     const lightConfig = this.config.light_map.find(l => l.entity_id === entity_id);
