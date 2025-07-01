@@ -274,6 +274,12 @@ class Floorplan3dCard extends LitElement {
                 // ** FIX: Force all materials to be affected by lights **
                 if (mesh.material) {
                     mesh.material.disableLighting = false;
+                    // Also ensure the material can reflect color. If the base diffuse
+                    // color is black, lights will have no effect. Setting it to
+                    // white ensures it reflects the light's color accurately.
+                    if (mesh.material.diffuseColor) {
+                         mesh.material.diffuseColor = new BABYLON.Color3(1, 1, 1);
+                    }
                 }
                 mesh.receiveShadows = globalShadows;
             });
