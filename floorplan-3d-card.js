@@ -22,6 +22,8 @@ const loadBabylonJs = async () => {
     // These must be loaded in order.
     await loadScript('https://cdn.babylonjs.com/babylon.js', 'BABYLON');
     await loadScript('https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js', 'BABYLON.OBJFileLoader');
+    // Add the GUI library for on-screen text
+    await loadScript('https://cdn.babylonjs.com/gui/babylon.gui.min.js', 'BABYLON.GUI');
 };
 
 
@@ -106,20 +108,6 @@ class Floorplan3dCard extends LitElement {
                 box-sizing: border-box;
                 text-align: center;
             }
-            #debug-coords {
-                position: absolute;
-                display: none;
-                top: 0;
-                left: 0;
-                padding: 4px 8px;
-                background: rgba(0,0,0,0.75);
-                color: white;
-                border-radius: 4px;
-                font-size: 12px;
-                pointer-events: none;
-                z-index: 20;
-                transform: translate(15px, 15px);
-            }
         `;
     }
 
@@ -156,7 +144,6 @@ class Floorplan3dCard extends LitElement {
             ` : ''}
             <div id="container">
                  <canvas id="renderCanvas"></canvas>
-                 ${this.config.debug_mode ? html`<div id="debug-coords"></div>` : ''}
             </div>
         `;
     }
@@ -165,7 +152,6 @@ class Floorplan3dCard extends LitElement {
         super.firstUpdated(changedProperties);
         this.container = this.shadowRoot.querySelector('#container');
         this.canvas = this.shadowRoot.querySelector('#renderCanvas');
-        this.debugCoordsEl = this.shadowRoot.querySelector('#debug-coords');
         this.loadAndInit();
     }
     
@@ -410,41 +396,50 @@ class Floorplan3dCard extends LitElement {
 
     setupInteractions() {
         this.scene.onPointerObservable.add((pointerInfo) => {
-            switch (pointerInfo.type) {
-                // Handle clicking on objects
-                case BABYLON.PointerEventTypes.POINTERDOWN:
-                    if (pointerInfo.pickInfo.hit && pointerInfo.pickInfo.pickedMesh && pointerInfo.pickInfo.pickedMesh.userData && pointerInfo.pickInfo.pickedMesh.userData.entity_id) {
-                        const entity_id = pointerInfo.pickInfo.pickedMesh.userData.entity_id;
+            if (pointerInfo.type === BABYLON.PointerEventTypes.POINTERDOWN) {
+                const pickResult = pointerInfo.pickInfo;
+                if (pickResult.hit && pickResult.pickedMesh) {
+                    // Check if a light was clicked
+                    if (pickResult.pickedMesh.userData && pickResult.pickedMesh.userData.entity_id) {
+                        const entity_id = pickResult.pickedMesh.userData.entity_id;
                         this.hass.callService('light', 'toggle', { entity_id });
-                    }
-                    break;
+                    } 
+                    // If debug mode is on and we didn't click a light, show coordinates
+                    else if (this.config.debug_mode === true) {
+                        const p = pickResult.pickedPoint;
 
-                // Handle debug coordinate display
-                case BABYLON.PointerEventTypes.POINTERMOVE:
-                    if (this.config.debug_mode === true && this.debugCoordsEl) {
-                        // Use the pick info from the pointer event, which is more efficient
-                        const pickResult = pointerInfo.pickInfo;
-                        if (pickResult.hit) {
-                            const p = pickResult.pickedPoint;
-                            this.debugCoordsEl.style.display = 'block';
-                            // Use scene.pointerX and Y which are relative to the canvas, making it more robust
-                            this.debugCoordsEl.style.left = `${this.scene.pointerX}px`;
-                            this.debugCoordsEl.style.top = `${this.scene.pointerY}px`;
-                            this.debugCoordsEl.innerHTML = `xy: [${p.x.toFixed(2)}, ${p.z.toFixed(2)}], height: ${p.y.toFixed(2)}`;
-                        } else {
-                            this.debugCoordsEl.style.display = 'none';
-                        }
+                        // Create a temporary marker
+                        const marker = BABYLON.MeshBuilder.CreateSphere("debug_click_marker", {diameter: 0.3}, this.scene);
+                        marker.position = p;
+                        const markerMaterial = new BABYLON.StandardMaterial("debug_click_mat", this.scene);
+                        markerMaterial.emissiveColor = BABYLON.Color3.Green();
+                        marker.material = markerMaterial;
+
+                        // Create a temporary text label
+                        const advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+                        const textBlock = new BABYLON.GUI.TextBlock();
+                        textBlock.text = `xy: [${p.x.toFixed(2)}, ${p.z.toFixed(2)}], height: ${p.y.toFixed(2)}`;
+                        textBlock.color = "white";
+                        textBlock.fontSize = 14;
+                        textBlock.background = "black";
+                        textBlock.paddingLeft = "4px";
+                        textBlock.paddingRight = "4px";
+                        textBlock.paddingTop = "2px";
+                        textBlock.paddingBottom = "2px";
+                        advancedTexture.addControl(textBlock);
+                        textBlock.linkWithMesh(marker);
+                        textBlock.linkOffsetY = -20; // Position text above the marker
+
+                        // Make them disappear after 5 seconds
+                        setTimeout(() => {
+                            marker.dispose();
+                            textBlock.dispose();
+                            advancedTexture.dispose();
+                        }, 5000);
                     }
-                    break;
+                }
             }
         });
-
-        // Hide the tooltip when the mouse leaves the canvas
-        if (this.config.debug_mode === true && this.debugCoordsEl) {
-            this.canvas.addEventListener('mouseout', () => {
-                this.debugCoordsEl.style.display = 'none';
-            });
-        }
     }
 
     onWindowResize() {
