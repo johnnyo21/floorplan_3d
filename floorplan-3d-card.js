@@ -274,9 +274,13 @@ class Floorplan3dCard extends LitElement {
             this.scene.materials.forEach(mat => {
                 mat.disableLighting = false; // Ensure lighting is not disabled
                 mat.unlit = false; // Ensure material is not unlit
-                // Force emissive color to black to prevent self-glowing from overriding lights
+                // Force emissive and ambient colors to black to ensure they don't
+                // override the scene's lighting. This is the key fix.
                 if (mat.emissiveColor) {
                     mat.emissiveColor = BABYLON.Color3.Black();
+                }
+                if (mat.ambientColor) {
+                    mat.ambientColor = BABYLON.Color3.Black();
                 }
             });
 
