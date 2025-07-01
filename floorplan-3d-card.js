@@ -319,21 +319,31 @@ class Floorplan3dCard extends LitElement {
             pointLight.intensity = 0; // Start off
             
             let lightPosition = null;
+            let clickableMesh = null;
 
             if (xy && Array.isArray(xy) && xy.length === 2 && height !== undefined) {
                 // Position from config is treated as world coordinates
                 lightPosition = new BABYLON.Vector3(parseFloat(xy[0]), parseFloat(height), parseFloat(xy[1]));
+                // Create an invisible sphere to make this light clickable
+                const clickableSphere = BABYLON.MeshBuilder.CreateSphere(`clickable_${entity_id}`, {diameter: 1.0}, this.scene);
+                clickableSphere.position = lightPosition;
+                clickableSphere.visibility = 0; // Make it invisible
+                clickableMesh = clickableSphere;
+
             } else if (object_name) {
-                 const objectMesh = this.scene.getMeshByName(object_name);
-                 if (objectMesh) {
-                    lightPosition = objectMesh.getAbsolutePosition(); 
-                    objectMesh.userData = { entity_id }; 
+                 clickableMesh = this.scene.getMeshByName(object_name);
+                 if (clickableMesh) {
+                    lightPosition = clickableMesh.getAbsolutePosition(); 
                  }
             }
 
             if (!lightPosition) {
                 console.warn(`Floorplan3D-Card: Could not find a position for light entity ${entity_id}`);
                 return;
+            }
+            
+            if (clickableMesh) {
+                clickableMesh.userData = { entity_id }; 
             }
             
             pointLight.position = lightPosition;
@@ -375,7 +385,7 @@ class Floorplan3dCard extends LitElement {
 
             if (state.state === 'on') {
                 // Set intensity first
-                const brightness = state.attributes.brightness ? (state.attributes.brightness / 255) : 1;
+                const brightness = state.attributes.brightness !== undefined ? (state.attributes.brightness / 255) : 1;
                 lightData.targetIntensity = lightData.maxIntensity * brightness;
 
                 // Set color based on available attributes
@@ -385,7 +395,7 @@ class Floorplan3dCard extends LitElement {
                     // Fallback to configured color for non-RGB lights (e.g., dimmable only)
                     lightData.light.diffuse = BABYLON.Color3.FromHexString(lightConfig.color);
                 }
-                // If no color info, it will retain its last/initial color
+                // If no color info, it will retain its last/initial color which defaults to yellow
                 
             } else { // state is 'off' or anything else
                 lightData.targetIntensity = 0;
