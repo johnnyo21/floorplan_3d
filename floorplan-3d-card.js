@@ -263,26 +263,23 @@ class Floorplan3dCard extends LitElement {
                 mesh.receiveShadows = globalShadows;
             });
             
-            this.createLights();
-
             // Center and frame the model
             const bounds = modelGroup.getHierarchyBoundingVectors();
             const size = bounds.max.subtract(bounds.min);
             const center = bounds.min.add(size.scale(0.5));
             modelGroup.position = center.scale(-1);
 
-            // ** FIX: Set camera view to fit the model **
+            // Create lights AFTER the model has been moved.
+            this.createLights();
+
             const maxDim = Math.max(size.x, size.z); // Use X and Z for a top-down view
             const padding = 1.2; 
 
-            // Set the vertical size of the camera's view
             this.camera.orthoTop = (maxDim / 2) * padding;
             this.camera.orthoBottom = -this.camera.orthoTop;
             
-            // Set radius to a safe distance to prevent clipping, especially for tall models
             this.camera.radius = size.y * 2 > maxDim ? size.y * 2 : maxDim;
 
-            // Trigger resize to calculate the horizontal size based on aspect ratio
             this.onWindowResize(); 
 
             this.camera.target = BABYLON.Vector3.Zero();
@@ -298,7 +295,8 @@ class Floorplan3dCard extends LitElement {
         
         const globalShadows = this.config.shadows !== false;
         const modelRoot = this.scene.getMeshByName("ModelRoot");
-        const childMeshes = modelRoot ? modelRoot.getChildMeshes() : [];
+        // Get all descendant meshes for shadow casting
+        const childMeshes = modelRoot ? modelRoot.getChildMeshes(true) : []; 
 
         this.config.light_map.forEach(lightConfig => {
             const { entity_id, position, object_name } = lightConfig;
@@ -316,16 +314,21 @@ class Floorplan3dCard extends LitElement {
             let lightPosition = null;
 
             if (position) {
+                // Position from config is treated as world coordinates
                 lightPosition = new BABYLON.Vector3(parseFloat(position.x), parseFloat(position.y), parseFloat(position.z));
             } else if (object_name) {
                  const objectMesh = this.scene.getMeshByName(object_name);
                  if (objectMesh) {
-                    lightPosition = objectMesh.getAbsolutePosition();
+                    // ** FIX: Get the absolute world position AFTER the model has been moved and centered **
+                    lightPosition = objectMesh.getAbsolutePosition(); 
                     objectMesh.userData = { entity_id }; // Attach entity_id for clicking
                  }
             }
 
-            if (!lightPosition) return;
+            if (!lightPosition) {
+                console.warn(`Floorplan3D-Card: Could not find a position for light entity ${entity_id}`);
+                return;
+            }
             
             pointLight.position = lightPosition;
 
