@@ -208,7 +208,7 @@ class Floorplan3dCard extends LitElement {
         this.scene = new BABYLON.Scene(this.engine);
         this.scene.clearColor = new BABYLON.Color4(0, 0, 0, 0); // Transparent background
 
-        // ** FIX: Increase the number of simultaneous lights **
+        // Increase the number of simultaneous lights
         this.scene.maxSimultaneousLights = 16;
 
         // Initialize the GUI texture if in debug mode
@@ -271,6 +271,10 @@ class Floorplan3dCard extends LitElement {
             const globalShadows = this.config.shadows !== false;
 
             meshes.forEach(mesh => {
+                // ** FIX: Force all materials to be affected by lights **
+                if (mesh.material) {
+                    mesh.material.disableLighting = false;
+                }
                 mesh.receiveShadows = globalShadows;
             });
             
