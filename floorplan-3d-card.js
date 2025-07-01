@@ -119,6 +119,7 @@ class Floorplan3dCard extends LitElement {
         this.lightObjects = new Map();
         this.engine = null;
         this.scene = null;
+        this.advancedTexture = null; // For the debug GUI
         this._boundOnWindowResize = this.onWindowResize.bind(this);
     }
     
@@ -206,6 +207,11 @@ class Floorplan3dCard extends LitElement {
 
         this.scene = new BABYLON.Scene(this.engine);
         this.scene.clearColor = new BABYLON.Color4(0, 0, 0, 0); // Transparent background
+
+        // Initialize the GUI texture if in debug mode
+        if (this.config.debug_mode) {
+            this.advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+        }
 
         this.setupCamera();
         
@@ -363,20 +369,26 @@ class Floorplan3dCard extends LitElement {
 
         this.lightObjects.forEach((lightData, entity_id) => {
             const state = this.hass.states[entity_id];
-            if (state) {
-                 const lightConfig = this.config.light_map.find(l => l.entity_id === entity_id);
-                if (state.state === 'on' && state.attributes.rgb_color) {
+            if (!state) return;
+
+            const lightConfig = this.config.light_map.find(l => l.entity_id === entity_id);
+
+            if (state.state === 'on') {
+                // Set intensity first
+                const brightness = state.attributes.brightness ? (state.attributes.brightness / 255) : 1;
+                lightData.targetIntensity = lightData.maxIntensity * brightness;
+
+                // Set color based on available attributes
+                if (state.attributes.rgb_color) {
                     lightData.light.diffuse = BABYLON.Color3.FromInts(...state.attributes.rgb_color);
                 } else if (lightConfig && lightConfig.color) {
+                    // Fallback to configured color for non-RGB lights (e.g., dimmable only)
                     lightData.light.diffuse = BABYLON.Color3.FromHexString(lightConfig.color);
                 }
+                // If no color info, it will retain its last/initial color
                 
-                if (state.state === 'on') {
-                    const brightness = state.attributes.brightness ? (state.attributes.brightness / 255) : 1;
-                    lightData.targetIntensity = lightData.maxIntensity * brightness;
-                } else {
-                    lightData.targetIntensity = 0;
-                }
+            } else { // state is 'off' or anything else
+                lightData.targetIntensity = 0;
             }
         });
     }
@@ -399,13 +411,13 @@ class Floorplan3dCard extends LitElement {
             if (pointerInfo.type === BABYLON.PointerEventTypes.POINTERDOWN) {
                 const pickResult = pointerInfo.pickInfo;
                 if (pickResult.hit && pickResult.pickedMesh) {
-                    // Check if a light was clicked
+                    // Check if a light's clickable mesh was clicked
                     if (pickResult.pickedMesh.userData && pickResult.pickedMesh.userData.entity_id) {
                         const entity_id = pickResult.pickedMesh.userData.entity_id;
                         this.hass.callService('light', 'toggle', { entity_id });
                     } 
                     // If debug mode is on and we didn't click a light, show coordinates
-                    else if (this.config.debug_mode === true) {
+                    else if (this.config.debug_mode === true && this.advancedTexture) {
                         const p = pickResult.pickedPoint;
 
                         // Create a temporary marker
@@ -415,8 +427,7 @@ class Floorplan3dCard extends LitElement {
                         markerMaterial.emissiveColor = BABYLON.Color3.Green();
                         marker.material = markerMaterial;
 
-                        // Create a temporary text label
-                        const advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+                        // Create a temporary text label using the existing GUI texture
                         const textBlock = new BABYLON.GUI.TextBlock();
                         textBlock.text = `xy: [${p.x.toFixed(2)}, ${p.z.toFixed(2)}], height: ${p.y.toFixed(2)}`;
                         textBlock.color = "white";
@@ -426,15 +437,15 @@ class Floorplan3dCard extends LitElement {
                         textBlock.paddingRight = "4px";
                         textBlock.paddingTop = "2px";
                         textBlock.paddingBottom = "2px";
-                        advancedTexture.addControl(textBlock);
+                        this.advancedTexture.addControl(textBlock);
                         textBlock.linkWithMesh(marker);
                         textBlock.linkOffsetY = -20; // Position text above the marker
 
                         // Make them disappear after 5 seconds
                         setTimeout(() => {
                             marker.dispose();
+                            this.advancedTexture.removeControl(textBlock);
                             textBlock.dispose();
-                            advancedTexture.dispose();
                         }, 5000);
                     }
                 }
