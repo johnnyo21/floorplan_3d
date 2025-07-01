@@ -271,15 +271,10 @@ class Floorplan3dCard extends LitElement {
             const globalShadows = this.config.shadows !== false;
 
             meshes.forEach(mesh => {
-                // ** FIX: Force all materials to be affected by lights **
+                // Force all materials to be affected by lights
                 if (mesh.material) {
+                    mesh.material.unlit = false;
                     mesh.material.disableLighting = false;
-                    // Also ensure the material can reflect color. If the base diffuse
-                    // color is black, lights will have no effect. Setting it to
-                    // white ensures it reflects the light's color accurately.
-                    if (mesh.material.diffuseColor) {
-                         mesh.material.diffuseColor = new BABYLON.Color3(1, 1, 1);
-                    }
                 }
                 mesh.receiveShadows = globalShadows;
             });
@@ -331,6 +326,9 @@ class Floorplan3dCard extends LitElement {
             pointLight.specular = lightColor;
             pointLight.intensity = 0; // Start off
             
+            // Set the light's range from the config, with a default value
+            pointLight.range = lightConfig.range || 100;
+
             let lightPosition = null;
             let clickableMesh = null;
 
