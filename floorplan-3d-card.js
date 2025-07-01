@@ -208,6 +208,9 @@ class Floorplan3dCard extends LitElement {
         this.scene = new BABYLON.Scene(this.engine);
         this.scene.clearColor = new BABYLON.Color4(0, 0, 0, 0); // Transparent background
 
+        // ** FIX: Increase the number of simultaneous lights **
+        this.scene.maxSimultaneousLights = 16;
+
         // Initialize the GUI texture if in debug mode
         if (this.config.debug_mode) {
             this.advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
@@ -394,7 +397,6 @@ class Floorplan3dCard extends LitElement {
                 if (state.state === 'on') {
                     const brightness = state.attributes.brightness !== undefined ? (state.attributes.brightness / 255) : 1;
                     lightData.targetIntensity = lightData.maxIntensity * brightness;
-                    console.log(`Floorplan3D-Card: Setting light ${entity_id} to intensity ${lightData.targetIntensity}`);
                 } else {
                     lightData.targetIntensity = 0;
                 }
