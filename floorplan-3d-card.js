@@ -379,26 +379,24 @@ class Floorplan3dCard extends LitElement {
 
         this.lightObjects.forEach((lightData, entity_id) => {
             const state = this.hass.states[entity_id];
-            if (!state) return;
-
-            const lightConfig = this.config.light_map.find(l => l.entity_id === entity_id);
-
-            if (state.state === 'on') {
-                // Set intensity first
-                const brightness = state.attributes.brightness !== undefined ? (state.attributes.brightness / 255) : 1;
-                lightData.targetIntensity = lightData.maxIntensity * brightness;
-
-                // Set color based on available attributes
+            if (state) {
+                // First, set the color
                 if (state.attributes.rgb_color) {
                     lightData.light.diffuse = BABYLON.Color3.FromInts(...state.attributes.rgb_color);
-                } else if (lightConfig && lightConfig.color) {
-                    // Fallback to configured color for non-RGB lights (e.g., dimmable only)
-                    lightData.light.diffuse = BABYLON.Color3.FromHexString(lightConfig.color);
+                } else {
+                    const lightConfig = this.config.light_map.find(l => l.entity_id === entity_id);
+                    if (lightConfig && lightConfig.color) {
+                        lightData.light.diffuse = BABYLON.Color3.FromHexString(lightConfig.color);
+                    }
                 }
-                // If no color info, it will retain its last/initial color which defaults to yellow
                 
-            } else { // state is 'off' or anything else
-                lightData.targetIntensity = 0;
+                // Then, set the intensity
+                if (state.state === 'on') {
+                    const brightness = state.attributes.brightness !== undefined ? (state.attributes.brightness / 255) : 1;
+                    lightData.targetIntensity = lightData.maxIntensity * brightness;
+                } else {
+                    lightData.targetIntensity = 0;
+                }
             }
         });
     }
