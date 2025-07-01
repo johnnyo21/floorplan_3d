@@ -270,12 +270,17 @@ class Floorplan3dCard extends LitElement {
             
             const globalShadows = this.config.shadows !== false;
 
-            meshes.forEach(mesh => {
-                // Force all materials to be affected by lights
-                if (mesh.material) {
-                    mesh.material.unlit = false;
-                    mesh.material.disableLighting = false;
+            // ** FIX: Force all materials to be affected by lights **
+            this.scene.materials.forEach(mat => {
+                mat.disableLighting = false; // Ensure lighting is not disabled
+                mat.unlit = false; // Ensure material is not unlit
+                // Force emissive color to black to prevent self-glowing from overriding lights
+                if (mat.emissiveColor) {
+                    mat.emissiveColor = BABYLON.Color3.Black();
                 }
+            });
+
+            meshes.forEach(mesh => {
                 mesh.receiveShadows = globalShadows;
             });
             
@@ -286,7 +291,7 @@ class Floorplan3dCard extends LitElement {
             modelGroup.position = center.scale(-1);
 
             // Create lights AFTER the model has been moved.
-            this.createLights();
+            this.createLights(size);
 
             const maxDim = Math.max(size.x, size.z); // Use X and Z for a top-down view
             const padding = 1.2; 
@@ -306,12 +311,13 @@ class Floorplan3dCard extends LitElement {
         }, onProgress, onError);
     }
     
-    createLights() {
+    createLights(modelSize) {
         if (!this.config.light_map) return;
         
         const globalShadows = this.config.shadows !== false;
         const modelRoot = this.scene.getMeshByName("ModelRoot");
         const childMeshes = modelRoot ? modelRoot.getChildMeshes(true) : []; 
+        const defaultRange = Math.max(modelSize.x, modelSize.y, modelSize.z) * 2;
 
         this.config.light_map.forEach(lightConfig => {
             const { entity_id, xy, height, object_name } = lightConfig;
@@ -326,8 +332,8 @@ class Floorplan3dCard extends LitElement {
             pointLight.specular = lightColor;
             pointLight.intensity = 0; // Start off
             
-            // Set the light's range from the config, with a default value
-            pointLight.range = lightConfig.range || 100;
+            // Set the light's range from the config, with a default value based on model size
+            pointLight.range = lightConfig.range || defaultRange;
 
             let lightPosition = null;
             let clickableMesh = null;
