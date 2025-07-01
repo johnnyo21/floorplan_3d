@@ -106,6 +106,20 @@ class Floorplan3dCard extends LitElement {
                 box-sizing: border-box;
                 text-align: center;
             }
+            #debug-coords {
+                position: absolute;
+                display: none;
+                top: 0;
+                left: 0;
+                padding: 4px 8px;
+                background: rgba(0,0,0,0.75);
+                color: white;
+                border-radius: 4px;
+                font-size: 12px;
+                pointer-events: none;
+                z-index: 20;
+                transform: translate(15px, 15px);
+            }
         `;
     }
 
@@ -142,6 +156,7 @@ class Floorplan3dCard extends LitElement {
             ` : ''}
             <div id="container">
                  <canvas id="renderCanvas"></canvas>
+                 ${this.config.debug_mode ? html`<div id="debug-coords"></div>` : ''}
             </div>
         `;
     }
@@ -150,6 +165,7 @@ class Floorplan3dCard extends LitElement {
         super.firstUpdated(changedProperties);
         this.container = this.shadowRoot.querySelector('#container');
         this.canvas = this.shadowRoot.querySelector('#renderCanvas');
+        this.debugCoordsEl = this.shadowRoot.querySelector('#debug-coords');
         this.loadAndInit();
     }
     
@@ -295,11 +311,10 @@ class Floorplan3dCard extends LitElement {
         
         const globalShadows = this.config.shadows !== false;
         const modelRoot = this.scene.getMeshByName("ModelRoot");
-        // Get all descendant meshes for shadow casting
         const childMeshes = modelRoot ? modelRoot.getChildMeshes(true) : []; 
 
         this.config.light_map.forEach(lightConfig => {
-            const { entity_id, position, object_name } = lightConfig;
+            const { entity_id, xy, height, object_name } = lightConfig;
 
             if (!entity_id) return;
             
@@ -313,15 +328,14 @@ class Floorplan3dCard extends LitElement {
             
             let lightPosition = null;
 
-            if (position) {
+            if (xy && Array.isArray(xy) && xy.length === 2 && height !== undefined) {
                 // Position from config is treated as world coordinates
-                lightPosition = new BABYLON.Vector3(parseFloat(position.x), parseFloat(position.y), parseFloat(position.z));
+                lightPosition = new BABYLON.Vector3(parseFloat(xy[0]), parseFloat(height), parseFloat(xy[1]));
             } else if (object_name) {
                  const objectMesh = this.scene.getMeshByName(object_name);
                  if (objectMesh) {
-                    // ** FIX: Get the absolute world position AFTER the model has been moved and centered **
                     lightPosition = objectMesh.getAbsolutePosition(); 
-                    objectMesh.userData = { entity_id }; // Attach entity_id for clicking
+                    objectMesh.userData = { entity_id }; 
                  }
             }
 
@@ -344,11 +358,16 @@ class Floorplan3dCard extends LitElement {
                 const shadowGenerator = new BABYLON.ShadowGenerator(1024, pointLight);
                 shadowGenerator.useBlurExponentialShadowMap = true;
                 shadowGenerator.blurKernel = 32;
+                childMeshes.forEach(m => shadowGenerator.getShadowMap().renderList.push(m));
+            }
 
-                // Add all meshes from the loaded model to this light's shadow map render list
-                childMeshes.forEach(m => {
-                    shadowGenerator.getShadowMap().renderList.push(m);
-                });
+            // Create a debug marker for the light's position
+            if (this.config.debug_mode === true) {
+                const debugSphere = BABYLON.MeshBuilder.CreateSphere(`debug_${entity_id}`, {diameter: 0.5}, this.scene);
+                debugSphere.position = lightPosition;
+                const debugMaterial = new BABYLON.StandardMaterial(`debug_mat_${entity_id}`, this.scene);
+                debugMaterial.emissiveColor = BABYLON.Color3.Red(); // Make it glow and ignore scene lighting
+                debugSphere.material = debugMaterial;
             }
         });
     }
@@ -390,19 +409,42 @@ class Floorplan3dCard extends LitElement {
     }
 
     setupInteractions() {
-        this.scene.onPointerDown = (evt, pickResult) => {
-            if (pickResult.hit && pickResult.pickedMesh && pickResult.pickedMesh.userData && pickResult.pickedMesh.userData.entity_id) {
-                const entity_id = pickResult.pickedMesh.userData.entity_id;
-                this.hass.callService('light', 'toggle', { entity_id });
-                return;
+        this.scene.onPointerObservable.add((pointerInfo) => {
+            switch (pointerInfo.type) {
+                // Handle clicking on objects
+                case BABYLON.PointerEventTypes.POINTERDOWN:
+                    if (pointerInfo.pickInfo.hit && pointerInfo.pickInfo.pickedMesh && pointerInfo.pickInfo.pickedMesh.userData && pointerInfo.pickInfo.pickedMesh.userData.entity_id) {
+                        const entity_id = pointerInfo.pickInfo.pickedMesh.userData.entity_id;
+                        this.hass.callService('light', 'toggle', { entity_id });
+                    }
+                    break;
+
+                // Handle debug coordinate display
+                case BABYLON.PointerEventTypes.POINTERMOVE:
+                    if (this.config.debug_mode === true && this.debugCoordsEl) {
+                        // Use the pick info from the pointer event, which is more efficient
+                        const pickResult = pointerInfo.pickInfo;
+                        if (pickResult.hit) {
+                            const p = pickResult.pickedPoint;
+                            this.debugCoordsEl.style.display = 'block';
+                            // Use scene.pointerX and Y which are relative to the canvas, making it more robust
+                            this.debugCoordsEl.style.left = `${this.scene.pointerX}px`;
+                            this.debugCoordsEl.style.top = `${this.scene.pointerY}px`;
+                            this.debugCoordsEl.innerHTML = `xy: [${p.x.toFixed(2)}, ${p.z.toFixed(2)}], height: ${p.y.toFixed(2)}`;
+                        } else {
+                            this.debugCoordsEl.style.display = 'none';
+                        }
+                    }
+                    break;
             }
-            
-            if (this.config.debug_mode === true && pickResult.hit) {
-                const p = pickResult.pickedPoint;
-                 console.log(`%c[FLOORPLAN DEBUG] Click coordinates:`, 'color: #03a9f4; font-weight: bold;', 
-                    `position: { x: ${p.x.toFixed(3)}, y: ${p.y.toFixed(3)}, z: ${p.z.toFixed(3)} }`);
-            }
-        };
+        });
+
+        // Hide the tooltip when the mouse leaves the canvas
+        if (this.config.debug_mode === true && this.debugCoordsEl) {
+            this.canvas.addEventListener('mouseout', () => {
+                this.debugCoordsEl.style.display = 'none';
+            });
+        }
     }
 
     onWindowResize() {
